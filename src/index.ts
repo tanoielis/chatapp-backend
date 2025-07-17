@@ -89,6 +89,15 @@ export class ChatRoom extends DurableObject<Env> {
 								message: aiReply
 							});
 
+							// Save AI message history
+							this.messages.push(aiMsg);
+							if (this.messages.length > this.MAX_HISTORY) {
+								this.messages.shift();
+							}
+
+							// Persist AI message history
+							await this.ctx.storage.put("messages", this.messages);
+
 							// Broadcast AI's message
 							for (const client of this.clients) {
 								try {
