@@ -78,7 +78,7 @@ export class ChatRoom extends DurableObject<Env> {
 					// Call AI
 					try {
 						const aiResponse = await this.env.AI.run(
-							"@cf/tinyllama/tinyllama-1.1b-chat-v1.0",
+							"@cf/qwen/qwen1.5-0.5b-chat",
 							{ messages: aiMessages }
 						);
 
