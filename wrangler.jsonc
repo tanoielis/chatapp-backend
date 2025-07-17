@@ -7,6 +7,14 @@
 	"name": "chatapp-backend",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-07-15",
+	"migrations": [
+		{
+			"new_sqlite_classes": [
+				"ChatRoom"
+			],
+			"tag": "v1"
+		}
+	],
 	"durable_objects": {
 		"bindings": [
 			{
