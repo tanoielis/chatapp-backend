@@ -2,16 +2,10 @@ import { DurableObject } from "cloudflare:workers";
 
 export class ChatRoom extends DurableObject<Env> {
   clients: WebSocket[] = [];
-  messages: string[] = [];
-  MAX_HISTORY = 10;
 
   constructor(ctx: DurableObjectState, env: Env) {
 	super(ctx, env);
-        ctx.blockConcurrencyWhile(async () => {
-	  this.messages = (await this.state.storage.get("messages")) || [];
-        });
   }
-
 
   async fetch(request: Request): Promise<Response> {
 	if (request.headers.get("Upgrade") !== "websocket") {
@@ -28,15 +22,10 @@ export class ChatRoom extends DurableObject<Env> {
   }
 
   handleWebSocket(ws: WebSocket) {
-	  ws.accept();
-	  this.clients.push(ws);
+	ws.accept();
+	this.clients.push(ws);
 
-	// Send last 10 messages
-	for (const msg of this.messages) {
-	  try { ws.send(msg); } catch {}
-	}
-
-	ws.addEventListener("message", async (event) => {
+	ws.addEventListener("message", (event) => {
 	  let msg;
 	  try {
 		msg = JSON.parse(event.data as string);
@@ -47,15 +36,6 @@ export class ChatRoom extends DurableObject<Env> {
 
 	  if (typeof msg.username === "string" && typeof msg.message === "string") {
 		const payload = JSON.stringify(msg);
-		  
-	        // Save message history
-	        this.messages.push(payload);
-	        if (this.messages.length > this.MAX_HISTORY) this.messages.shift();
-	
-	        // Persist messages
-	        await this.state.storage.put("messages", this.messages);
-
-		// Broadcast
 		for (const client of this.clients) {
 		  try {
 			client.send(payload);
