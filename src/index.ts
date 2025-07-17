@@ -9,7 +9,7 @@ export class ChatRoom extends DurableObject<Env> {
 	super(ctx, env);
         ctx.blockConcurrencyWhile(async () => {
 	  this.messages = (await this.state.storage.get("messages")) || [];
-        }
+        });
   }
 
 
