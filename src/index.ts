@@ -71,8 +71,10 @@ export class ChatRoom extends DurableObject<Env> {
 
 					// Build messages array for AI
 					const aiMessages = [
-						{ role: "system", content: "You are a helpful assistant called AI. You are currently in a chat room." },
-						{ role: "user", content: prompt }
+						// System prompt
+						{ role: "system", content: "You are a helpful assistant. You are currently in a chat room." },
+						// User prompt
+						{ role: msg.username, content: prompt }
 					];
 
 					// Call AI
