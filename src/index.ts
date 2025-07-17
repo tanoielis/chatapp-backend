@@ -74,13 +74,13 @@ export class ChatRoom extends DurableObject<Env> {
 						// System prompt
 						{ role: "system", content: "You are a helpful assistant. You are currently in a chat room." },
 						// User prompt
-						{ role: msg.username, content: prompt }
+						{ role: "user", content: prompt }
 					];
 
 					// Call AI
 					try {
 						const aiResponse = await this.env.AI.run(
-							"@cf/qwen/qwen1.5-0.5b-chat",
+							"@cf/meta/llama-3.1-8b-instruct-fast",
 							{ messages: aiMessages }
 						);
 
