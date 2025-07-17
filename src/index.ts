@@ -1,58 +1,94 @@
 import { DurableObject } from "cloudflare:workers";
 
 export class ChatRoom extends DurableObject<Env> {
-  clients: WebSocket[] = [];
+	clients: WebSocket[] = [];
 
-  constructor(ctx: DurableObjectState, env: Env) {
-	super(ctx, env);
-  }
-
-  async fetch(request: Request): Promise<Response> {
-	if (request.headers.get("Upgrade") !== "websocket") {
-	  return new Response("Expected WebSocket", { status: 400 });
+	constructor(ctx: DurableObjectState, env: Env) {
+		super(ctx, env);
 	}
 
-	const webSocketPair = new WebSocketPair();
-	const [client, server] = Object.values(webSocketPair);
-	this.handleWebSocket(server);
-	return new Response(null, {
-	  status: 101,
-	  webSocket: client
-	});
-  }
-
-  handleWebSocket(ws: WebSocket) {
-	ws.accept();
-	this.clients.push(ws);
-
-	ws.addEventListener("message", (event) => {
-	  let msg;
-	  try {
-		msg = JSON.parse(event.data as string);
-	  } catch {
-		console.warn("Invalid JSON from client");
-		return;
-	  }
-
-	  if (typeof msg.username === "string" && typeof msg.message === "string") {
-		const payload = JSON.stringify(msg);
-		for (const client of this.clients) {
-		  try {
-			client.send(payload);
-		  } catch {
-			// Ignore failed sends
-		  }
+	async fetch(request: Request): Promise<Response> {
+		if (request.headers.get("Upgrade") !== "websocket") {
+			return new Response("Expected WebSocket", { status: 400 });
 		}
-	  }
-	});
 
-	ws.addEventListener("close", () => this.cleanup(ws));
-	ws.addEventListener("error", () => this.cleanup(ws));
-  }
+		const webSocketPair = new WebSocketPair();
+		const [client, server] = Object.values(webSocketPair);
+		this.handleWebSocket(server);
+		return new Response(null, {
+			status: 101,
+			webSocket: client
+		});
+	}
 
-  cleanup(ws: WebSocket) {
-	this.clients = this.clients.filter(c => c !== ws);
-  }
+	handleWebSocket(ws: WebSocket) {
+		ws.accept();
+		this.clients.push(ws);
+
+		ws.addEventListener("message", async (event) => {
+			let msg;
+			try {
+				msg = JSON.parse(event.data as string);
+			} catch {
+				console.warn("Invalid JSON from client");
+				return;
+			}
+
+			if (typeof msg.username === "string" && typeof msg.message === "string") {
+				const payload = JSON.stringify(msg);
+
+				// Broadcast user's message to all clients
+				for (const client of this.clients) {
+					try {
+						client.send(payload);
+					} catch { }
+				}
+
+				// Check if message is an AI prompt
+				if (msg.message.startsWith("/ai ")) {
+					const prompt = msg.message.slice(4).trim();
+
+					// Build messages array for AI
+					const aiMessages = [
+						{ role: "system", content: "You are a helpful assistant in a chat room." },
+						{ role: "user", content: prompt }
+					];
+
+					// Call AI
+					try {
+						const aiResponse = await this.env.AI.run(
+							"@cf/tinyllama/tinyllama-1.1b-chat-v1.0",
+							{ messages: aiMessages }
+						);
+
+						const aiReply = aiResponse.response?.trim();
+						if (aiReply) {
+							const aiMsg = JSON.stringify({
+								username: "AI",
+								message: aiReply
+							});
+
+							// Broadcast AI's message
+							for (const client of this.clients) {
+								try {
+									client.send(aiMsg);
+								} catch { }
+							}
+						}
+					} catch (err) {
+						console.warn("AI request failed:", err);
+					}
+				}
+			}
+		});
+
+		ws.addEventListener("close", () => this.cleanup(ws));
+		ws.addEventListener("error", () => this.cleanup(ws));
+	}
+
+	cleanup(ws: WebSocket) {
+		this.clients = this.clients.filter(c => c !== ws);
+	}
 }
 
 
