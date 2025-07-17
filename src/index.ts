@@ -7,12 +7,11 @@ export class ChatRoom extends DurableObject<Env> {
 
   constructor(ctx: DurableObjectState, env: Env) {
 	super(ctx, env);
-    	this.initialize();
+        ctx.blockConcurrencyWhile(async () => {
+	  this.messages = (await this.state.storage.get("messages")) || [];
+        }
   }
 
-  async initialize() {
-    this.messages = (await this.state.storage.get("messages")) || [];
-  }
 
   async fetch(request: Request): Promise<Response> {
 	if (request.headers.get("Upgrade") !== "websocket") {
@@ -29,15 +28,15 @@ export class ChatRoom extends DurableObject<Env> {
   }
 
   handleWebSocket(ws: WebSocket) {
-	ws.accept();
-	this.clients.push(ws);
+	  this.ctx.acceptWebSocket(ws);
+	  this.clients.push(ws);
 
 	// Send last 10 messages
 	for (const msg of this.messages) {
 	  try { ws.send(msg); } catch {}
 	}
 
-	ws.addEventListener("message", (event) => {
+	ws.addEventListener("message", async (event) => {
 	  let msg;
 	  try {
 		msg = JSON.parse(event.data as string);
