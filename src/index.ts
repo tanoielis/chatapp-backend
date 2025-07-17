@@ -28,7 +28,7 @@ export class ChatRoom extends DurableObject<Env> {
   }
 
   handleWebSocket(ws: WebSocket) {
-	  this.ctx.acceptWebSocket(ws);
+	  ws.accept();
 	  this.clients.push(ws);
 
 	// Send last 10 messages
