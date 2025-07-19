@@ -64,53 +64,6 @@ export class ChatRoom extends DurableObject<Env> {
 						client.send(payload);
 					} catch { }
 				}
-
-				// Check if message is an AI prompt
-				if (msg.message.startsWith("/ai ")) {
-					const prompt = msg.message.slice(4).trim();
-
-					// Build messages array for AI
-					const aiMessages = [
-						// System prompt
-						{ role: "system", content: "You are a helpful assistant. You are currently in a chat room." },
-						// User prompt
-						{ role: "user", content: prompt }
-					];
-
-					// Call AI
-					try {
-						const aiResponse = await this.env.AI.run(
-							"@cf/meta/llama-3.1-8b-instruct-fast",
-							{ messages: aiMessages }
-						);
-
-						const aiReply = aiResponse.response?.trim();
-						if (aiReply) {
-							const aiMsg = JSON.stringify({
-								username: "AI",
-								message: aiReply
-							});
-
-							// Save AI message history
-							this.messages.push(aiMsg);
-							if (this.messages.length > this.MAX_HISTORY) {
-								this.messages.shift();
-							}
-
-							// Persist AI message history
-							await this.ctx.storage.put("messages", this.messages);
-
-							// Broadcast AI's message
-							for (const client of this.clients) {
-								try {
-									client.send(aiMsg);
-								} catch { }
-							}
-						}
-					} catch (err) {
-						console.warn("AI request failed:", err);
-					}
-				}
 			}
 		});
 
